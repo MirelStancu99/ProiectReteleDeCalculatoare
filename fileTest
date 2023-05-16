@@ -1,0 +1,13 @@
+Vreau o aplicatie client - server pe socket-uri, implementata in python cu urmatoarele: 
+- Clientul se autentifica prin cont, trimitand server-ului o lista cu fisierele pe care le publica, si primeste lista tuturor fisierelor publicate de toti clientii autentificati
+-Cand un client se autentifica, ceilalti clienti autentificati primesc o notificare de adaugare a acesuia
+-Un client poate solocita server-ului descarcarea unui fisier de la alti clienti
+-Clientul salveaza fisierul in sistemul sau de fisiere, Fiecare client va avea un director gazda expus, care va fi monitorizat (se creeaza automat directorul cand se autentifica un client nou)
+
+Available commands:
+- publish: Publish a file 
+- list: Display the list of all published files
+- download: Download a file
+- read: Read a file
+- showDirectories: show all directories from all users 
+- exit: Disconnect
