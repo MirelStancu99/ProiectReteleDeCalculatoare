@@ -29,9 +29,15 @@ def main():
         elif cmd == "LOGOUT":
             client.send(cmd.encode(FORMAT))
             break
-        elif cmd == "LIST":
+        elif cmd == "LISTSERVER":
+            client.send(cmd.encode(FORMAT))
+        elif cmd == "LISTCLIENT":
+            client.send(cmd.encode(FORMAT))
+        elif cmd == "LISTDOWNLOAD":
             client.send(cmd.encode(FORMAT))
         elif cmd == "DELETE":
+            client.send(f"{cmd}@{data[1]}".encode(FORMAT))
+        elif cmd == "LOGIN":
             client.send(f"{cmd}@{data[1]}".encode(FORMAT))
         elif cmd == "UPLOAD":
             path = data[1]
@@ -51,6 +57,9 @@ def main():
             filename = path.split("/")[-1]
             send_data = f"{cmd}@{filename}@{text}"
             client.send(send_data.encode(FORMAT))
+        else:
+            cmd = "INCORRECT"
+            client.send(cmd.encode(FORMAT))
 
     print("Disconnected from the server.")
     client.close()
