@@ -1,130 +1,97 @@
+
+import os
 import socket
 import threading
-import os
 
-class Server:
-    def __init__(self, port):
-        self.host = ''
-        self.port = port
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind((self.host, self.port))
-        self.clients = {} # dictionar cu clientii conectati
+IP = socket.gethostbyname(socket.gethostname())
+PORT = 4456
+ADDR = (IP, PORT)
+SIZE = 1024
+FORMAT = "utf-8"
+SERVER_DATA_PATH = "server_data"
+CLIENT_DATA_PATH = "client_data"
 
-    def listen(self):
-        self.socket.listen(5)
-        print(f"Serverul asculta pe portul {self.port}...")
-        while True:
-            conn, addr = self.socket.accept()
-            print(f"S-a conectat un client nou: {addr}")
-            threading.Thread(target=self.handle_client, args=(conn, addr)).start()
+def handle_client(conn, addr):
+    print(f"[NEW CONNECTION] {addr} connected.")
+    conn.send("OK@Welcome to the File Server.".encode(FORMAT))
 
-    def handle_client(self, conn, addr):
-        try:
-            while True:
-                data = conn.recv(1024)
-                if not data:
-                    break
-                command = data.decode().strip()
-                if command == 'publish':
-                    # publica un fisier
-                    filename = conn.recv(1024).decode().strip()
-                    filesize = conn.recv(1024).decode().strip()
-                    filedata = conn.recv(int(filesize))
-                    self.publish_file(addr, filename, filedata)
-                    conn.sendall("Fisierul a fost publicat cu succes!".encode())
-                elif command == 'list':
-                    # trimite o lista cu toate fisierele publicate
-                    self.get_file_list(conn) 
-                elif command == 'download':
-                    # descarca un fisier
-                    filename = conn.recv(1024).decode().strip()
-                    filedata = self.get_file(filename)
-                    if filedata:
-                        conn.sendall(filedata)
-                    else:
-                        conn.sendall(f"Fisierul {filename} nu exista!".encode())
-                elif command == 'read':
-                    # citeste un fisier
-                    filename = conn.recv(1024).decode().strip()
-                    filedata = self.get_file(filename)
-                    if filedata:
-                        conn.sendall(filedata)
-                    else:
-                        conn.sendall(f"Fisierul {filename} nu exista!".encode())
-                elif command == 'showDirectories':
-                    # trimite lista de directoare catre client
-                    directories = self.get_directories()
-                    conn.sendall(directories.encode())
-                elif command == 'exit':
-                    # deconecteaza clientul
-                    self.remove_client(addr)
-                    conn.close()
-                    print(f"S-a deconectat clientul: {addr}")
-                    break
-        except Exception as e:
-            print(f"Eroare la comunicarea cu clientul {addr}: {e}")
-            self.remove_client(addr)
-            conn.close()
+    while True:
+        data = conn.recv(SIZE).decode(FORMAT)
+        data = data.split("@")
+        cmd = data[0]
 
-    def publish_file(self, addr, filename, filedata):
-        # publica un fisier
-        directory = f"client_{addr[0]}_{addr[1]}"
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        with open(f"{directory}/{filename}", "wb") as f:
-            f.write(filedata)
-        print(f"Clientul {addr} a publicat fisierul {filename}")
-        self.notify_clients(addr)
+        if cmd == "LIST":
+            files = os.listdir(SERVER_DATA_PATH)
+            send_data = "OK@"
 
-        
-    def get_file_list(self, conn):
-    # Construim lista de fișiere publicate
-        filelist = ""
-        for client_addr, client_dir in self.clients.items():
-            directory = f"client_{client_addr[0]}_{client_addr[1]}"
-            if os.path.exists(directory):
-                files = os.listdir(directory)
-                for file in files:
-                    filelist += f"{file}\n"
-        filelist += "<END>"
-        conn.sendall(filelist.encode())
+            if len(files) == 0:
+                send_data += "The server directory is empty"
+            else:
+                send_data += "\n".join(f for f in files)
+            conn.send(send_data.encode(FORMAT))
 
+        elif cmd == "UPLOAD":
+            name, text = data[1], data[2]
+            filepath = os.path.join(SERVER_DATA_PATH, name)
+            with open(filepath, "w") as f:
+                f.write(text)
 
+            send_data = "OK@File uploaded successfully."
+            conn.send(send_data.encode(FORMAT))
+            
+        elif cmd == "DOWNLOAD":
+            name, text = data[1], data[2]
+            filepath = os.path.join(CLIENT_DATA_PATH, name)
+            with open(filepath, "w") as f:
+                f.write(text)
 
+            send_data = "OK@File downloaded successfully."
+            conn.send(send_data.encode(FORMAT))
 
+        elif cmd == "DELETE":
+            files = os.listdir(SERVER_DATA_PATH)
+            send_data = "OK@"
+            filename = data[1]
 
+            if len(files) == 0:
+                send_data += "The server directory is empty"
+            else:
+                if filename in files:
+                    filepath = os.path.join(SERVER_DATA_PATH, filename)
+                    os.remove(filepath)
+                    send_data += "File deleted successfully."
+                else:
+                    send_data += "File not found."
 
+            conn.send(send_data.encode(FORMAT))
 
-    def get_file(self, filename):
-        # returneaza continutul unui fisier
-        for client in self.clients.values():
-            directory = f"client_{client[0]}_{client[1]}"
-            if os.path.exists(f"{directory}/{filename}"):
-                with open(f"{directory}/{filename}", "rb") as f:
-                    return f.read()
-        return None
+        elif cmd == "LOGOUT":
+            break
+        elif cmd == "HELP":
+            data = "OK@"
+            data += "LIST: List all the files from the server.\n"
+            data += "UPLOAD <path>: Upload a file to the server.\n"
+            data += "DELETE <filename>: Delete a file from the server.\n"
+            data += "LOGOUT: Disconnect from the server.\n"
+            data += "HELP: List all the commands."
 
-    def notify_clients(self, new_client):
-        # trimite o notificare tuturor clientilor despre adaugarea unui client nou
-        for client_addr, conn in self.clients.items():
-            conn.sendall(f"Noul client {new_client} s-a conectat!".encode())
+            conn.send(data.encode(FORMAT))
 
-    def remove_client(self, addr):
-        # elimina un client din lista de clienti conectati
-        if addr in self.clients:
-            del self.clients[addr]
+    print(f"[DISCONNECTED] {addr} disconnected")
+    conn.close()
 
-    def get_directories(self):
-    # returneaza o lista cu toate directoarele de gazda
-        directories = ""
-        for client in self.clients.values():
-            directories += f"client_{client[0]}_{client[1]}\n"
-        directories += "<END>"  # Adăugați acest rând pentru a marca sfârșitul listei de directoare
-        return directories
-
-
-    
-if __name__ == '__main__':
-    port = 5000
-    server = Server(port)
+def main():
+    print("[STARTING] Server is starting")
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(ADDR)
     server.listen()
+    print(f"[LISTENING] Server is listening on {IP}:{PORT}.")
+
+    while True:
+        conn, addr = server.accept()
+        thread = threading.Thread(target=handle_client, args=(conn, addr))
+        thread.start()
+        print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
+
+if __name__ == "__main__":
+    main()
