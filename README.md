@@ -1,4 +1,5 @@
 # Multithreaded File Transfer using TCP Socket in Python
+# Proiect_Retele_Gr1090_Stancu-Gheorghe-Mirel_Radulescu-Denis-Andrei_Rusu-Robert
 
 A multithreaded file transfer client-server program build using a python programming language. The server has the capability to handle multiple clients concurrently at the same by using threading. The server assigns each client a thread to handle working for that client. 
 
