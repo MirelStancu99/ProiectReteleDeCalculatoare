@@ -75,7 +75,7 @@ def handle_client(conn, addr):
         elif cmd == "LOGIN":
             username= data[1]
             print(f"[NEW LOGGED IN] {addr} {username} connected.")
-            send_data = "OK@Te-ai logat cu succes "+ username
+            send_data = "OK@LOGGED IN WITH SUCCES: "+ username
             conn.send(send_data.encode(FORMAT))
 
         elif cmd == "DELETE":
@@ -96,6 +96,9 @@ def handle_client(conn, addr):
             conn.send(send_data.encode(FORMAT))
 
         elif cmd == "LOGOUT":
+            print(f"[LOGGED OUT] {addr} {username} disconnected.")
+            send_data = "OK@LOGGED OUT WITH SUCCES: "+ username
+            conn.send(send_data.encode(FORMAT))
             break
         elif cmd == "HELP":
             data = "OK@"
